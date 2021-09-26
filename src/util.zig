@@ -8,10 +8,11 @@ pub fn read_file(allocator: *std.mem.Allocator, path: []const u8) ![]u8 {
     );
     defer file.close();
 
-    return file.reader().readAllAlloc(
-        allocator,
-        2048
-    );
+    const stat = try file.stat();
+    var buffer = try allocator.alloc(u8, stat.size);
+
+    _ = try file.readAll(buffer);
+    return buffer;
 }
 
 pub fn compile_shader(allocator: *std.mem.Allocator, shader_src_path: []const u8, shader_type: c.GLenum) !u32 {
@@ -27,9 +28,10 @@ pub fn compile_shader(allocator: *std.mem.Allocator, shader_src_path: []const u8
 
     if(success != c.GL_TRUE) {
         const buffer = try allocator.alloc(u8, 2048);
+        var len: i32 = 0;
         // defer allocator.free(buffer);
-        c.glGetShaderInfoLog(shader, @intCast(c_int, buffer.len), null, buffer.ptr);
-        std.debug.panic("Failed to compile shader: {s}\n", .{buffer}); //TODO don't print after null ternimated
+        c.glGetShaderInfoLog(shader, @intCast(c_int, buffer.len), &len, buffer.ptr);
+        std.debug.panic("Failed to compile shader: {s}\n", .{buffer[0..@intCast(usize, len)]});
     }
 
     return shader;

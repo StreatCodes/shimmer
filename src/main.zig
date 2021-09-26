@@ -15,6 +15,8 @@ pub fn main() anyerror!void {
 
 
     var shimmer = try Shimmer.init(alloc, "shimmer");
+    _ = c.glfwSetWindowUserPointer(shimmer.window, &shimmer);
+
     try shimmer.run(alloc);
 
     defer shimmer.deinit();

@@ -6,16 +6,28 @@ fn close_window_callback(window: ?*c.GLFWwindow) callconv(.C) void {
     c.glfwSetWindowShouldClose(window, c.GLFW_TRUE);
 }
 
-fn request_adapter_callback(impl: ?*c.WGPUAdapterImpl, a: ?*c_void) callconv(.C) void {
-
-}
-
 pub const Shimmer = struct {
     const Self = @This();
 
     window: *c.GLFWwindow,
+    mouse_x: f32,
+    mouse_y: f32,
+    window_w: i32,
+    window_h: i32,
 
-    pub fn init(allocator: *std.mem.Allocator,  name: [*c]const u8) !Self {
+    fn cursor_position_callback(window: ?*c.GLFWwindow, x: f64, y: f64) callconv(.C) void {
+        const w = @ptrCast(*Self, @alignCast(@alignOf(Self), c.glfwGetWindowUserPointer(window)));
+        w.mouse_x = @floatCast(f32, x);
+        w.mouse_y = @floatCast(f32, y);
+    }
+
+    fn frame_size_callback(window: ?*c.GLFWwindow, x: i32, y: i32) callconv(.C) void {
+        const w = @ptrCast(*Self, @alignCast(@alignOf(Self), c.glfwGetWindowUserPointer(window)));
+        w.window_w = x;
+        w.window_h = y;
+    }
+
+    pub fn init(allocator: *std.mem.Allocator, name: [*c]const u8) !Self {
         if (c.glfwInit() != c.GLFW_TRUE) {
             std.debug.panic("Could not initialize glfw", .{});
         }
@@ -24,7 +36,10 @@ pub const Shimmer = struct {
         c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 6);
         c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
 
-        const window = c.glfwCreateWindow(1280, 720,
+        const window_width = 1280;
+        const window_height = 720;
+
+        const window = c.glfwCreateWindow(window_width, window_height,
             name,
             null,
             null,
@@ -32,15 +47,18 @@ pub const Shimmer = struct {
         c.glfwMakeContextCurrent(window);
 
         _ = c.glfwSetWindowCloseCallback(window, close_window_callback);
-        // void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-        // glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+        _ = c.glfwSetFramebufferSizeCallback(window, frame_size_callback);
+        _ = c.glfwSetCursorPosCallback(window, cursor_position_callback);
 
-        c.glViewport(0, 0, 1280, 720);
-
+        c.glViewport(0, 0, window_width, window_height);
         c.glClearColor(0.2, 0.3, 0.3, 1.0);
 
         return Self {
             .window = window,
+            .mouse_x = 0.0,
+            .mouse_y = 0.0,
+            .window_w = window_width,
+            .window_h = window_height
         };
     }
 
@@ -58,12 +76,21 @@ pub const Shimmer = struct {
         c.glUseProgram(shader_prog);
         //TODO delete prog?
 
+        const mouse_cords_uni = c.glGetUniformLocation(shader_prog, "mouse_cords");
+        const window_size_uni = c.glGetUniformLocation(shader_prog, "window_size");
+
         //Buffer init
+        // const vertices = [_]f32{
+        //     10.0, 20.0,
+        //     40.0, 20.0,
+        //     10.0, 40.0,
+        //     40.0, 40.0,
+        // };
         const vertices = [_]f32{
-            10.0, 20.0,
-            40.0, 20.0,
-            10.0, 40.0,
-            40.0, 40.0,
+            0, 0,
+            @intToFloat(f32, self.window_w), 0,
+            0, @intToFloat(f32, self.window_h),
+            @intToFloat(f32, self.window_w), @intToFloat(f32, self.window_h),
         };
 
         //init vao
@@ -84,6 +111,9 @@ pub const Shimmer = struct {
         while (c.glfwWindowShouldClose(self.window) == 0) {
             c.glfwPollEvents();
             c.glClear(c.GL_COLOR_BUFFER_BIT);
+
+            c.glUniform2f(mouse_cords_uni, self.mouse_x, self.mouse_y);
+            c.glUniform2i(window_size_uni, self.window_w, self.window_h);
 
             c.glBindVertexArray(vao);
             c.glDrawArrays(c.GL_TRIANGLE_STRIP, 0, 4);
