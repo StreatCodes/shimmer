@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const c = @import("c.zig");
-const Shimmer = @import("window.zig").Shimmer;
+const Window = @import("window.zig").Window;
 
 pub fn main() anyerror!void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -14,8 +14,8 @@ pub fn main() anyerror!void {
     const alloc: *std.mem.Allocator = &gpa.allocator;
 
 
-    var shimmer = try Shimmer.init(alloc, "shimmer");
-    _ = c.glfwSetWindowUserPointer(shimmer.window, &shimmer);
+    var shimmer = try Window.init(alloc, "shimmer");
+    _ = c.glfwSetWindowUserPointer(shimmer.window, &shimmer); //TODO move me
 
     try shimmer.run(alloc);
 

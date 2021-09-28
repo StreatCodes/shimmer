@@ -1,12 +1,15 @@
 const c = @import("c.zig");
 const std = @import("std");
 const util = @import("util.zig");
+const Surface = @import("surface.zig").Surface;
+const math = @import("math.zig");
 
 fn close_window_callback(window: ?*c.GLFWwindow) callconv(.C) void {
+        std.debug.print("close window cb\n", .{});
     c.glfwSetWindowShouldClose(window, c.GLFW_TRUE);
 }
 
-pub const Shimmer = struct {
+pub const Window = struct {
     const Self = @This();
 
     window: *c.GLFWwindow,
@@ -23,8 +26,10 @@ pub const Shimmer = struct {
 
     fn frame_size_callback(window: ?*c.GLFWwindow, x: i32, y: i32) callconv(.C) void {
         const w = @ptrCast(*Self, @alignCast(@alignOf(Self), c.glfwGetWindowUserPointer(window)));
+        c.glViewport(0, 0, x, y);
         w.window_w = x;
         w.window_h = y;
+        
     }
 
     pub fn init(allocator: *std.mem.Allocator, name: [*c]const u8) !Self {
@@ -35,9 +40,10 @@ pub const Shimmer = struct {
         c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 4);
         c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 6);
         c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
+        c.glfwWindowHint(c.GLFW_DOUBLEBUFFER, c.GLFW_TRUE);
 
         const window_width = 1280;
-        const window_height = 720;
+        const window_height = 1080;
 
         const window = c.glfwCreateWindow(window_width, window_height,
             name,
@@ -79,34 +85,15 @@ pub const Shimmer = struct {
         const mouse_cords_uni = c.glGetUniformLocation(shader_prog, "mouse_cords");
         const window_size_uni = c.glGetUniformLocation(shader_prog, "window_size");
 
-        //Buffer init
-        // const vertices = [_]f32{
-        //     10.0, 20.0,
-        //     40.0, 20.0,
-        //     10.0, 40.0,
-        //     40.0, 40.0,
-        // };
-        const vertices = [_]f32{
-            0, 0,
-            @intToFloat(f32, self.window_w), 0,
-            0, @intToFloat(f32, self.window_h),
-            @intToFloat(f32, self.window_w), @intToFloat(f32, self.window_h),
-        };
-
-        //init vao
-        var vao: u32 = 0;
-        c.glGenVertexArrays(1, &vao);
-        c.glBindVertexArray(vao);
-
-        var vbo: u32 = 0;
-        c.glGenBuffers(1, &vbo);
-        c.glBindBuffer(c.GL_ARRAY_BUFFER, vbo);
-
-        c.glBufferData(c.GL_ARRAY_BUFFER, vertices.len * @sizeOf(f32), &vertices, c.GL_STATIC_DRAW);
-
-        //describe data layout
-        c.glVertexAttribPointer(0, 2, c.GL_FLOAT, c.GL_FALSE, 2 * @sizeOf(f32), null);
-        c.glEnableVertexAttribArray(0);
+        var surface = try Surface.init(
+            allocator,
+            math.Rect{
+                .x = 0,
+                .y = 0,
+                .w = @intToFloat(f32, self.window_w),
+                .h = @intToFloat(f32, self.window_h)
+            }
+        );
 
         while (c.glfwWindowShouldClose(self.window) == 0) {
             c.glfwPollEvents();
@@ -114,9 +101,14 @@ pub const Shimmer = struct {
 
             c.glUniform2f(mouse_cords_uni, self.mouse_x, self.mouse_y);
             c.glUniform2i(window_size_uni, self.window_w, self.window_h);
-
-            c.glBindVertexArray(vao);
-            c.glDrawArrays(c.GL_TRIANGLE_STRIP, 0, 4);
+            
+            surface.update(math.Rect{
+                .x = 5,
+                .y = 5,
+                .w = @intToFloat(f32, self.window_w) - 5,
+                .h = @intToFloat(f32, self.window_h) / 2
+            });
+            surface.draw();
 
             c.glfwSwapBuffers(self.window);
         }
