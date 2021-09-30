@@ -31,7 +31,7 @@ pub fn compile_shader(allocator: *std.mem.Allocator, shader_src_path: []const u8
         var len: i32 = 0;
         // defer allocator.free(buffer);
         c.glGetShaderInfoLog(shader, @intCast(c_int, buffer.len), &len, buffer.ptr);
-        std.debug.panic("Failed to compile shader: {s}\n", .{buffer[0..@intCast(usize, len)]});
+        std.debug.panic("Failed to compile shader ({s}): {s}\n", .{shader_src_path, buffer[0..@intCast(usize, len)]});
     }
 
     return shader;

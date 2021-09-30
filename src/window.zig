@@ -32,6 +32,15 @@ pub const Window = struct {
         
     }
 
+    fn gl_error_callback(source: c.GLenum, err_type: c.GLenum, id: c.GLuint, severity: c.GLenum,
+        length: c.GLsizei, message: [*c]const c.GLchar, userParam: ?*const c_void) callconv(.C) void {
+        //ignore notify
+        if(severity != 0x826b) {
+            std.debug.print("GL Error callback:\n{s}\n", .{message});
+            std.debug.print("ID: {d}\nSeverity: 0x{x}\nType: 0x{x}\n", .{id, severity, err_type});
+        }
+    }
+
     pub fn init(allocator: *std.mem.Allocator, name: [*c]const u8) !Self {
         if (c.glfwInit() != c.GLFW_TRUE) {
             std.debug.panic("Could not initialize glfw", .{});
@@ -58,6 +67,10 @@ pub const Window = struct {
 
         c.glViewport(0, 0, window_width, window_height);
         c.glClearColor(0.2, 0.3, 0.3, 1.0);
+
+        //TODO only debug
+        c.glEnable(c.GL_DEBUG_OUTPUT);
+        c.glDebugMessageCallback(gl_error_callback, null);
 
         return Self {
             .window = window,
@@ -105,8 +118,8 @@ pub const Window = struct {
             surface.update(math.Rect{
                 .x = 5,
                 .y = 5,
-                .w = @intToFloat(f32, self.window_w) - 5,
-                .h = @intToFloat(f32, self.window_h) / 2
+                .w = 512,
+                .h = 512
             });
             surface.draw();
 

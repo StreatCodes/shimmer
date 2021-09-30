@@ -1,14 +1,18 @@
 #version 330 core
-layout(origin_upper_left) in vec4 gl_FragCoord;
+in vec2 tex_coord;
 
-out vec4 color;
-
+uniform sampler2D tex;
 uniform vec2 mouse_cords;
 uniform ivec2 window_size;
 
-void main() {
-    vec2 uv = gl_FragCoord.xy / window_size;
-    vec2 mouse = mouse_cords / gl_FragCoord.xy;
+out vec4 color;
 
-    color = vec4(mouse.xy, 0.2, 1.0);
+void main() {
+    // vec2 uv = gl_FragCoord.xy / window_size;
+    // vec2 mouse = mouse_cords / gl_FragCoord.xy;
+
+    // color = vec4(mouse.xy, 0.2, 1.0);
+
+    vec4 c = texture(tex, tex_coord);
+    color = vec4(c.rrr, 1.0);
 }
